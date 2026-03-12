@@ -1,0 +1,146 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches Firebase Auth UID)
+    // Fields:
+    //   - email: string (required) - User's email address
+    //   - role: string (required, ['admin', 'user']) - User's role
+    //   - displayName: string (optional) - User's display name
+    //
+    // Collection: categories
+    // Document ID: {categoryId} (auto-generated)
+    // Fields:
+    //   - name: string (required)
+    //   - description: string (optional)
+    //   - createdAt: string (ISO 8601, required)
+    //
+    // Collection: quizzes
+    // Document ID: {quizId} (auto-generated)
+    // Fields:
+    //   - title: string (required)
+    //   - categoryId: string (optional)
+    //   - identifiedStructure: map (required)
+    //   - axisEstablishment: map (required)
+    //   - sections: list (required)
+    //   - finalPrayer: string (required)
+    //   - createdAt: string (ISO 8601, required)
+    //   - createdBy: string (UID, required)
+    //
+    // Collection: user_results
+    // Document ID: {resultId} (auto-generated)
+    // Fields:
+    //   - userId: string (UID, required)
+    //   - quizId: string (required)
+    //   - answers: map (required)
+    //   - completedAt: string (ISO 8601, required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "romaconcurso@gmail.com") ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['email', 'role', 'displayName']) &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['admin', 'user'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100));
+    }
+
+    function isValidCategory(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.createdAt is string &&
+             (!('description' in data) || (data.description is string && data.description.size() < 500));
+    }
+
+    function isValidQuiz(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             (!('categoryId' in data) || data.categoryId is string) &&
+             data.identifiedStructure is map &&
+             data.axisEstablishment is map &&
+             data.sections is list && data.sections.size() > 0 &&
+             data.finalPrayer is string &&
+             data.createdAt is string &&
+             data.createdBy == request.auth.uid;
+    }
+
+    function isValidResult(data) {
+      return data.userId == request.auth.uid &&
+             data.quizId is string &&
+             data.answers is map &&
+             data.completedAt is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Users can read their own profile. Admin can read any profile.
+      // We use email check for admin to avoid circular get() calls during initial setup.
+      allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.email == "romaconcurso@gmail.com");
+      
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (
+        request.resource.data.role == 'user' || 
+        (request.auth.token.email == "romaconcurso@gmail.com" && request.resource.data.role == 'admin')
+      );
+      
+      allow update: if isValidUser(request.resource.data) && (
+        (isOwner(userId) && request.resource.data.role == resource.data.role) || 
+        (isAuthenticated() && request.auth.token.email == "romaconcurso@gmail.com")
+      );
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidCategory(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /quizzes/{quizId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidQuiz(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /user_results/{resultId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidResult(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

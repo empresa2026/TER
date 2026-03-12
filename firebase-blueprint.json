@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Category": {
+      "title": "Category",
+      "description": "A category for protocols (e.g., Bloqueio Timidez).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "createdAt"]
+    },
+    "Quiz": {
+      "title": "Protocol",
+      "description": "A self-inquiry protocol.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "identifiedStructure": { "type": "object" },
+        "axisEstablishment": { "type": "object" },
+        "sections": { "type": "array" },
+        "finalPrayer": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["title", "identifiedStructure", "axisEstablishment", "sections", "finalPrayer", "createdAt", "createdBy"]
+    },
+    "UserResult": {
+      "title": "User Result",
+      "description": "A user's answers to a protocol.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "quizId": { "type": "string" },
+        "answers": { "type": "object" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "quizId", "answers", "completedAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and role.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collection of protocol categories."
+    },
+    "/quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Collection of all available protocols."
+    },
+    "/user_results/{resultId}": {
+      "schema": "UserResult",
+      "description": "History of protocol attempts by users."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile data."
+    }
+  }
+}
