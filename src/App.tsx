@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut, 
-  User 
-} from 'firebase/auth';
-import { 
   collection, 
   onSnapshot, 
   query, 
@@ -17,10 +10,10 @@ import {
   setDoc,
   getDocFromServer
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { db } from './firebase';
 import { Quiz, UserResult, UserProfile, Category } from './types';
 import { motion } from 'framer-motion';
-import { Crown, Loader2 } from 'lucide-react';
+import { Crown, Loader2, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { handleFirestoreError, OperationType } from './lib/firestore';
 
 // Components
@@ -34,7 +27,7 @@ import { HistoryView } from './components/quiz/HistoryView';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<{ uid: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [view, setView] = useState<'library' | 'admin' | 'quiz' | 'history'>('library');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -55,37 +48,53 @@ export default function App() {
     };
     testConnection();
 
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', u.uid));
-          if (userDoc.exists()) {
-            setProfile({ uid: u.uid, ...userDoc.data() } as UserProfile);
-          } else {
-            const newProfile: UserProfile = {
-              uid: u.uid,
-              email: u.email || '',
-              role: u.email === 'romaconcurso@gmail.com' ? 'admin' : 'user',
-              displayName: u.displayName || ''
-            };
-            await setDoc(doc(db, 'users', u.uid), {
-              email: newProfile.email,
-              role: newProfile.role,
-              displayName: newProfile.displayName
-            });
-            setProfile(newProfile);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${u.uid}`);
-        }
-      } else {
-        setProfile(null);
-      }
+    // Check for saved mock session
+    const savedRole = localStorage.getItem('mock_user_role');
+    if (savedRole) {
+      handleMockLogin(savedRole as 'admin' | 'user');
+    } else {
       setLoading(false);
-    });
-    return unsubscribe;
+    }
   }, []);
+
+  const handleMockLogin = async (role: 'admin' | 'user') => {
+    setLoading(true);
+    const uid = role === 'admin' ? 'mock-admin-id' : 'mock-user-id';
+    const mockUser = { uid };
+    
+    setUser(mockUser);
+    localStorage.setItem('mock_user_role', role);
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (userDoc.exists()) {
+        setProfile({ uid, ...userDoc.data() } as UserProfile);
+      } else {
+        const newProfile: UserProfile = {
+          uid,
+          email: role === 'admin' ? 'admin@lux.com' : 'user@lux.com',
+          role,
+          displayName: role === 'admin' ? 'Administrador Lux' : 'Explorador Lux'
+        };
+        await setDoc(doc(db, 'users', uid), {
+          email: newProfile.email,
+          role: newProfile.role,
+          displayName: newProfile.displayName
+        });
+        setProfile(newProfile);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setProfile(null);
+    localStorage.removeItem('mock_user_role');
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -120,13 +129,6 @@ export default function App() {
     return unsubscribe;
   }, [user]);
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-  };
-
-  const handleLogout = () => signOut(auth);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-luxury-black">
@@ -142,17 +144,33 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-md"
+            className="max-w-md w-full"
           >
             <Crown className="w-16 h-16 text-gold mx-auto mb-8" />
             <h1 className="text-5xl font-serif mb-4 gold-text">The Ego Reset</h1>
             <p className="text-white/60 mb-12 text-lg">
               A experiência definitiva em auto-investigação e sofisticação. 
-              Entre para acessar sua biblioteca exclusiva.
+              Escolha seu modo de acesso para continuar.
             </p>
-            <Button onClick={handleLogin} className="w-full text-lg py-4">
-              Entrar com Google
-            </Button>
+            
+            <div className="space-y-4">
+              <Button 
+                onClick={() => handleMockLogin('admin')} 
+                className="w-full text-lg py-6 flex items-center justify-center gap-3"
+              >
+                <ShieldCheck className="w-6 h-6" />
+                Entrar como Administrador
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => handleMockLogin('user')} 
+                className="w-full text-lg py-6 flex items-center justify-center gap-3 border-white/10 hover:bg-white/5"
+              >
+                <UserIcon className="w-6 h-6" />
+                Entrar como Usuário
+              </Button>
+            </div>
           </motion.div>
         </div>
       </ErrorBoundary>
@@ -175,6 +193,7 @@ export default function App() {
           {activeQuiz ? (
             <QuizPlayer 
               quiz={activeQuiz} 
+              userId={user.uid}
               onComplete={() => {
                 setActiveQuiz(null);
                 setView('history');
@@ -195,6 +214,7 @@ export default function App() {
               {view === 'admin' && profile?.role === 'admin' && (
                 <AdminDashboard 
                   categories={categories}
+                  userId={user.uid}
                   onBack={() => setView('library')}
                 />
               )}

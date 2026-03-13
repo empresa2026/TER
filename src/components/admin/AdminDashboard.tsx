@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, FolderPlus, Plus, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import { Category, Quiz } from '../../types';
 import { handleFirestoreError, OperationType } from '../../lib/firestore';
 import { generateQuizFromPrompt } from '../../services/geminiService';
@@ -11,10 +11,11 @@ import { Card } from '../ui/Card';
 
 interface AdminDashboardProps {
   categories: Category[];
+  userId: string;
   onBack: () => void;
 }
 
-export function AdminDashboard({ categories, onBack }: AdminDashboardProps) {
+export function AdminDashboard({ categories, userId, onBack }: AdminDashboardProps) {
   const [generatorPrompt, setGeneratorPrompt] = useState(() => 
     localStorage.getItem('luxquiz_generator_prompt') || 
     'Crie um protocolo de auto-investigação profundo que explore as camadas do ego e a ferida primária.'
@@ -57,7 +58,7 @@ export function AdminDashboard({ categories, onBack }: AdminDashboardProps) {
         ...quizData,
         categoryId: selectedCategoryId || null,
         createdAt: new Date().toISOString(),
-        createdBy: auth.currentUser?.uid
+        createdBy: userId
       });
       onBack();
     } catch (err) {

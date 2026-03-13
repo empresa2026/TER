@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Check, Crown } from 'lucide-react';
 import { collection, addDoc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import { Quiz } from '../../types';
 import { handleFirestoreError, OperationType } from '../../lib/firestore';
 import { cn } from '../../lib/utils';
@@ -10,11 +10,12 @@ import { Button } from '../ui/Button';
 
 interface QuizPlayerProps {
   quiz: Quiz;
+  userId: string;
   onComplete: () => void;
   onBack: () => void;
 }
 
-export function QuizPlayer({ quiz, onComplete, onBack }: QuizPlayerProps) {
+export function QuizPlayer({ quiz, userId, onComplete, onBack }: QuizPlayerProps) {
   const [currentSectionIdx, setCurrentSectionIdx] = useState(-1); // -1 for Intro, sections.length for Final Prayer
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -49,7 +50,7 @@ export function QuizPlayer({ quiz, onComplete, onBack }: QuizPlayerProps) {
     setSaving(true);
     try {
       await addDoc(collection(db, 'user_results'), {
-        userId: auth.currentUser?.uid,
+        userId: userId,
         quizId: quiz.id,
         answers,
         completedAt: new Date().toISOString()
