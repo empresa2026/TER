@@ -42,7 +42,7 @@ export function QuizPlayer({ quiz, onComplete, onBack }: QuizPlayerProps) {
         setCurrentSectionIdx(currentSectionIdx + 1);
         setCurrentQuestionIdx(0);
       }
-    }, 400);
+    }, 1000);
   };
 
   const saveResult = async () => {
@@ -169,16 +169,18 @@ export function QuizPlayer({ quiz, onComplete, onBack }: QuizPlayerProps) {
               <div className="grid grid-cols-1 gap-4">
                 {sections[currentSectionIdx].questions[currentQuestionIdx].options.map((option, idx) => {
                   const isSelected = selectedOption === idx;
+                  const isDimmed = selectedOption !== null && !isSelected;
                   return (
                     <motion.button
                       key={idx}
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={selectedOption === null ? { scale: 0.98 } : {}}
                       onClick={() => handleAnswer(idx)}
                       className={cn(
                         "glass p-6 rounded-2xl text-left transition-all group flex items-center justify-between border",
                         isSelected 
                           ? "border-gold bg-gold/10 shadow-[0_0_20px_rgba(212,175,55,0.2)]" 
-                          : "border-white/5 hover:border-gold/50 hover:bg-white/10"
+                          : "border-white/5 hover:border-gold/50 hover:bg-white/10",
+                        isDimmed && "opacity-20 grayscale scale-[0.98] pointer-events-none"
                       )}
                     >
                       <span className={cn(

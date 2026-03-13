@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FolderPlus, Plus, Loader2, Sparkles } from 'lucide-react';
-import { collection, addDoc } from 'firebase/firestore';
+import { ArrowLeft, FolderPlus, Plus, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
-import { Category } from '../../types';
+import { Category, Quiz } from '../../types';
 import { handleFirestoreError, OperationType } from '../../lib/firestore';
 import { generateQuizFromPrompt } from '../../services/geminiService';
 import { Button } from '../ui/Button';
@@ -25,6 +25,7 @@ export function AdminDashboard({ categories, onBack }: AdminDashboardProps) {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [cleaning, setCleaning] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('luxquiz_generator_prompt', generatorPrompt);
@@ -66,6 +67,50 @@ export function AdminDashboard({ categories, onBack }: AdminDashboardProps) {
     }
   };
 
+  const handleCleanup = async () => {
+    setCleaning(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'quizzes'));
+      const updates = querySnapshot.docs.map(async (quizDoc) => {
+        const data = quizDoc.data() as Quiz;
+        let needsUpdate = false;
+        const newData: any = {};
+
+        // Clean Title
+        if (data.title && /lux/i.test(data.title)) {
+          newData.title = data.title.replace(/lux/gi, '').replace(/\s+/g, ' ').trim();
+          needsUpdate = true;
+        }
+
+        // Clean Sections
+        if (data.sections) {
+          const newSections = data.sections.map(section => {
+            if (section.title && /bloco/i.test(section.title)) {
+              needsUpdate = true;
+              return {
+                ...section,
+                title: section.title.replace(/bloco\s*/gi, '').trim()
+              };
+            }
+            return section;
+          });
+          if (needsUpdate) newData.sections = newSections;
+        }
+
+        if (needsUpdate) {
+          await updateDoc(doc(db, 'quizzes', quizDoc.id), newData);
+        }
+      });
+
+      await Promise.all(updates);
+      alert('Limpeza concluída com sucesso!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'quizzes');
+    } finally {
+      setCleaning(false);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }} 
@@ -77,9 +122,30 @@ export function AdminDashboard({ categories, onBack }: AdminDashboardProps) {
         <ArrowLeft className="w-4 h-4" /> Voltar
       </button>
       
-      <h2 className="text-4xl font-serif mb-8">Gestão Lux</h2>
+      <h2 className="text-4xl font-serif mb-8">Gestão</h2>
 
       <div className="space-y-12">
+        {/* Cleanup Utility */}
+        <Card className="border-gold/20 bg-gold/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Wand2 className="w-5 h-5 text-gold" />
+              <div>
+                <h3 className="text-xl font-serif">Limpeza de Dados</h3>
+                <p className="text-xs text-white/40">Remove "Lux" dos títulos e "Bloco" das seções nos protocolos existentes.</p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleCleanup} 
+              disabled={cleaning}
+              className="border-gold/20 text-gold hover:bg-gold hover:text-black"
+            >
+              {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : "Limpar Agora"}
+            </Button>
+          </div>
+        </Card>
+
         {/* Category Creation */}
         <Card className="space-y-6 border-gold/10">
           <div className="flex items-center gap-3 mb-2">
@@ -157,7 +223,7 @@ export function AdminDashboard({ categories, onBack }: AdminDashboardProps) {
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Gerar Protocolo Lux
+                Gerar Protocolo
               </>
             )}
           </Button>

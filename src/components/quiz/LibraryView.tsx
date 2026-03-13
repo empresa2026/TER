@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, Sparkles, ChevronRight, BookOpen } from 'lucide-react';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { Trash2, Sparkles, ChevronRight, BookOpen, Edit2, Check, X } from 'lucide-react';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Quiz, Category, UserResult } from '../../types';
 import { cn } from '../../lib/utils';
@@ -24,6 +24,10 @@ export function LibraryView({
 }: LibraryViewProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState<string>('');
+  const [newCategoryId, setNewCategoryId] = useState<string | null>(null);
 
   const filteredQuizzes = selectedCategoryId 
     ? quizzes.filter(q => q.categoryId === selectedCategoryId)
@@ -53,6 +57,40 @@ export function LibraryView({
     } catch (err) {
       console.error('Erro ao deletar categoria:', err);
       setStatus({ type: 'error', message: 'Erro ao deletar categoria. Verifique suas permissões.' });
+    }
+  };
+
+  const handleUpdateQuizCategory = async (e: React.MouseEvent, quizId: string) => {
+    e.stopPropagation();
+    setStatus(null);
+    try {
+      await updateDoc(doc(db, 'quizzes', quizId), {
+        categoryId: newCategoryId || null
+      });
+      setEditingQuizId(null);
+      setNewCategoryId(null);
+      setStatus({ type: 'success', message: 'Categoria atualizada com sucesso.' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err) {
+      console.error('Erro ao atualizar categoria:', err);
+      setStatus({ type: 'error', message: 'Erro ao atualizar categoria. Verifique suas permissões.' });
+    }
+  };
+
+  const handleUpdateQuizTitle = async (e: React.MouseEvent, quizId: string) => {
+    e.stopPropagation();
+    if (!newTitle.trim()) return;
+    setStatus(null);
+    try {
+      await updateDoc(doc(db, 'quizzes', quizId), {
+        title: newTitle.trim()
+      });
+      setEditingTitleId(null);
+      setStatus({ type: 'success', message: 'Título atualizado com sucesso.' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err) {
+      console.error('Erro ao atualizar título:', err);
+      setStatus({ type: 'error', message: 'Erro ao atualizar título. Verifique suas permissões.' });
     }
   };
 
@@ -120,14 +158,28 @@ export function LibraryView({
           const attempts = history.filter(h => h.quizId === quiz.id);
           
           return (
-            <Card key={quiz.id} className="group hover:border-gold/30 transition-all cursor-pointer relative" onClick={() => onSelect(quiz)}>
+            <Card key={quiz.id} className="group hover:border-gold/30 transition-all cursor-pointer relative flex flex-col" onClick={() => onSelect(quiz)}>
               {isAdmin && (
-                <button 
-                  onClick={(e) => handleDeleteQuiz(e, quiz.id)}
-                  className="absolute top-4 right-4 p-2 text-white/10 hover:text-red-400 transition-colors z-10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="absolute top-4 right-4 flex gap-2 z-10">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingQuizId(quiz.id);
+                      setNewCategoryId(quiz.categoryId || null);
+                    }}
+                    className="p-2 text-white/10 hover:text-gold transition-colors"
+                    title="Mudar Categoria"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDeleteQuiz(e, quiz.id)}
+                    className="p-2 text-white/10 hover:text-red-400 transition-colors"
+                    title="Deletar Protocolo"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               )}
               
               <div className="flex justify-between items-start mb-6">
@@ -140,7 +192,83 @@ export function LibraryView({
                   </div>
                 )}
               </div>
-              <h3 className="text-2xl font-serif mb-3 group-hover:text-gold transition-colors pr-8">{quiz.title}</h3>
+
+              {editingQuizId === quiz.id ? (
+                <div className="mb-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+                  <label className="text-[10px] uppercase text-white/40 font-bold">Nova Categoria</label>
+                  <div className="flex gap-2">
+                    <select 
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-gold/50"
+                      value={newCategoryId || ''}
+                      onChange={(e) => setNewCategoryId(e.target.value || null)}
+                    >
+                      <option value="" className="bg-luxury-black">Geral</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id} className="bg-luxury-black">{cat.name}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={(e) => handleUpdateQuizCategory(e, quiz.id)}
+                      className="p-2 bg-gold text-black rounded-xl hover:bg-gold/80 transition-all"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingQuizId(null);
+                      }}
+                      className="p-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : editingTitleId === quiz.id ? (
+                <div className="mb-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+                  <label className="text-[10px] uppercase text-white/40 font-bold">Editar Título</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-gold/50"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      autoFocus
+                    />
+                    <button 
+                      onClick={(e) => handleUpdateQuizTitle(e, quiz.id)}
+                      className="p-2 bg-gold text-black rounded-xl hover:bg-gold/80 transition-all"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTitleId(null);
+                      }}
+                      className="p-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <h3 
+                  className={cn(
+                    "text-2xl font-serif mb-3 group-hover:text-gold transition-colors pr-16",
+                    isAdmin && "cursor-text hover:underline decoration-gold/30 underline-offset-4"
+                  )}
+                  onClick={(e) => {
+                    if (isAdmin) {
+                      e.stopPropagation();
+                      setEditingTitleId(quiz.id);
+                      setNewTitle(quiz.title);
+                    }
+                  }}
+                >
+                  {quiz.title}
+                </h3>
+              )}
               <div className="grid grid-cols-2 gap-2 mb-6">
                 <div className="text-[9px] uppercase text-white/20">Mascara: {quiz.identifiedStructure?.mascara || 'N/A'}</div>
                 <div className="text-[9px] uppercase text-white/20">Modo: {quiz.identifiedStructure?.modo || 'N/A'}</div>

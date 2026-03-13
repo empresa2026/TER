@@ -5,12 +5,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 const PROTOCOL_SYSTEM_INSTRUCTION = `
 Você é um especialista em psicologia profunda e auto-investigação terapêutica.
-Sua tarefa é gerar um "Protocolo de Auto-Investigação Lux" baseado em um tema/termo fornecido.
+Sua tarefa é gerar um "Protocolo de Auto-Investigação" baseado em um tema/termo fornecido.
 
 ESTRUTURA FIXA DO PROTOCOLO:
 1. ESTRUTURA IDENTIFICADA: Mapeie a Ferida Primária, Domínio de Dor, Máscara do Ego e Modo Operante relacionados ao tema.
 2. ESTABELECIMENTO DE EIXO: Um texto de ancoragem profundo e uma instrução de leitura (ex: "Leia em voz alta, sentindo o peso de cada palavra").
-3. BLOCOS DE INVESTIGAÇÃO: Divida a jornada em blocos (ex: BLOCO 1, BLOCO 2, O SALTO). Cada bloco deve ter perguntas introspectivas com 4 opções de resposta que representam diferentes níveis de consciência ou padrões de comportamento.
+3. SEÇÕES DE INVESTIGAÇÃO: Divida a jornada em seções (ex: 1. A ORIGEM, 2. O PADRÃO, O SALTO). Cada seção deve ter perguntas introspectivas com 4 opções de resposta que representam diferentes níveis de consciência ou padrões de comportamento. NÃO use a palavra "BLOCO" nos títulos.
 4. ORAÇÃO FINAL: Um texto de renúncia e entrega para encerrar o protocolo.
 
 TOM E ESTILO:
@@ -53,8 +53,8 @@ export async function generateQuizFromPrompt(instructions: string, topic: string
             items: {
               type: Type.OBJECT,
               properties: {
-                title: { type: Type.STRING, description: "Ex: BLOCO 1: A ORIGEM" },
-                intro: { type: Type.STRING, description: "Texto introdutório do bloco" },
+                title: { type: Type.STRING, description: "Ex: 1. A ORIGEM" },
+                intro: { type: Type.STRING, description: "Texto introdutório da seção" },
                 questions: {
                   type: Type.ARRAY,
                   items: {
