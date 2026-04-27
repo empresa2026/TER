@@ -10,7 +10,8 @@ import {
   setDoc,
   getDocFromServer
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { auth, db } from './firebase';
 import { Quiz, UserResult, UserProfile, Category, Matrix, MatrixResult, EnjoymentPlanResult, Protocol, ProtocolResult } from './types';
 import { motion } from 'framer-motion';
 import { Crown, Loader2, User as UserIcon, ShieldCheck, LayoutGrid, ShieldAlert } from 'lucide-react';
@@ -60,16 +61,71 @@ export default function App() {
     };
     testConnection();
 
-    // Check for saved mock session
-    const savedRole = localStorage.getItem('mock_user_role');
-    if (savedRole) {
-      handleMockLogin(savedRole as 'admin' | 'user');
-    } else {
+    // Sync with real Firebase Auth
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const uid = firebaseUser.uid;
+        setUser({ uid });
+        
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            setProfile({ uid, ...userDoc.data() } as UserProfile);
+          } else {
+            // Create profile for new authenticated user
+            const savedRole = localStorage.getItem('mock_user_role') || 'user';
+            const newProfile: UserProfile = {
+              uid,
+              email: firebaseUser.email || '',
+              role: savedRole as 'admin' | 'user',
+              displayName: firebaseUser.displayName || 'Explorador da Unidade'
+            };
+            await setDoc(doc(db, 'users', uid), {
+              email: newProfile.email,
+              role: newProfile.role,
+              displayName: newProfile.displayName
+            });
+            setProfile(newProfile);
+          }
+        } catch (error) {
+          console.error("Error syncing user profile:", error);
+        }
+      } else {
+        // Fallback to mock session if not real auth and has saved role
+        const savedRole = localStorage.getItem('mock_user_role');
+        if (savedRole) {
+          handleMockLogin(savedRole as 'admin' | 'user');
+        }
+      }
       setLoading(false);
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Google Login Error:", error);
+    }
+  };
+
   const handleMockLogin = async (role: 'admin' | 'user') => {
+    // If we have a real user, just update their role
+    if (auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      localStorage.setItem('mock_user_role', role);
+      try {
+        await setDoc(doc(db, 'users', uid), { role }, { merge: true });
+        setProfile(prev => prev ? { ...prev, role } : null);
+      } catch (error) {
+        console.error("Error updating role:", error);
+      }
+      return;
+    }
+
     setLoading(true);
     const uid = role === 'admin' ? 'mock-admin-id' : 'mock-user-id';
     const mockUser = { uid };
@@ -102,7 +158,8 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     setUser(null);
     setProfile(null);
     localStorage.removeItem('mock_user_role');
@@ -200,21 +257,38 @@ export default function App() {
             
             <div className="space-y-4">
               <Button 
-                onClick={() => handleMockLogin('admin')} 
-                className="w-full text-lg py-6 flex items-center justify-center gap-3"
+                onClick={handleGoogleLogin} 
+                className="w-full text-lg py-6 flex items-center justify-center gap-3 bg-white text-black hover:bg-white/90"
               >
-                <ShieldCheck className="w-6 h-6" />
-                Entrar como Administrador
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
+                Entrar com Google
               </Button>
+
+              <div className="flex items-center gap-4 my-6">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-white/20 text-xs font-bold uppercase tracking-widest">Modo Dev</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
               
-              <Button 
-                variant="outline"
-                onClick={() => handleMockLogin('user')} 
-                className="w-full text-lg py-6 flex items-center justify-center gap-3 border-white/10 hover:bg-white/5"
-              >
-                <UserIcon className="w-6 h-6" />
-                Entrar como Usuário
-              </Button>
+              <div className="grid grid-cols-2 gap-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => handleMockLogin('admin')} 
+                  className="text-xs py-4 flex items-center justify-center gap-2 border-white/10 hover:bg-white/5"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Mestre (Admin)
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  onClick={() => handleMockLogin('user')} 
+                  className="text-xs py-4 flex items-center justify-center gap-2 border-white/10 hover:bg-white/5"
+                >
+                  <UserIcon className="w-4 h-4" />
+                  Explorador (User)
+                </Button>
+              </div>
             </div>
           </motion.div>
         </div>

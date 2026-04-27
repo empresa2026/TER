@@ -175,7 +175,7 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
                   </p>
 
                   {matrix.fields[currentStep].hints && !isViewMode && (
-                    <div className="flex flex-wrap gap-2 mb-6">
+                    <div className="flex flex-wrap gap-3 mb-8">
                       {matrix.fields[currentStep].hints?.map((hint, i) => (
                         <motion.button
                           key={i}
@@ -189,9 +189,9 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
                               [matrix.fields[currentStep].label]: current ? `${current}\n${hint}` : hint 
                             }));
                           }}
-                          className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/5 transition-all flex items-center gap-2 group"
+                          className="px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-base text-white/60 hover:text-gold hover:border-gold/40 hover:bg-gold/10 transition-all flex items-center gap-3 group shadow-sm"
                         >
-                          <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <Plus className="w-5 h-5 text-gold/50 group-hover:text-gold transition-colors" />
                           {hint}
                         </motion.button>
                       ))}
@@ -251,12 +251,12 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
 
 function HelpSection({ icon, title, content }: { icon: React.ReactNode, title: string, content: string }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 text-gold">
         {icon}
-        <span className="text-[10px] font-bold uppercase tracking-widest">{title}</span>
+        <span className="text-xs font-bold uppercase tracking-widest">{title}</span>
       </div>
-      <p className="text-xs text-white/50 leading-relaxed italic">
+      <p className="text-sm text-white/50 leading-relaxed italic">
         {content}
       </p>
     </div>
