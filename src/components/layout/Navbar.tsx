@@ -1,10 +1,10 @@
 import React from 'react';
-import { BookOpen, History, Plus, LayoutGrid } from 'lucide-react';
+import { BookOpen, History, Plus, LayoutGrid, Crown, ShieldAlert } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface NavbarProps {
-  view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices';
-  setView: (view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices') => void;
+  view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols';
+  setView: (view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols') => void;
   isAdmin: boolean;
 }
 
@@ -12,6 +12,17 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/5 p-4 z-50">
       <div className="max-w-md mx-auto flex justify-around items-center">
+        <button 
+          onClick={() => setView('plan')}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            view === 'plan' ? "text-gold" : "text-white/20 hover:text-white/40"
+          )}
+        >
+          <Crown className="w-6 h-6" />
+          <span className="text-[10px] uppercase font-bold tracking-widest">Plano</span>
+        </button>
+
         <button 
           onClick={() => setView('library')}
           className={cn(
@@ -32,6 +43,17 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
         >
           <LayoutGrid className="w-6 h-6" />
           <span className="text-[10px] uppercase font-bold tracking-widest">Checkpoint</span>
+        </button>
+
+        <button 
+          onClick={() => setView('protocols')}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            view === 'protocols' ? "text-gold" : "text-white/20 hover:text-white/40"
+          )}
+        >
+          <ShieldAlert className="w-6 h-6" />
+          <span className="text-[10px] uppercase font-bold tracking-widest">Processos</span>
         </button>
         
         <button 

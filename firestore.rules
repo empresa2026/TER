@@ -105,29 +105,77 @@ service cloud.firestore {
              data.completedAt is string;
     }
 
+    function isValidMatrixResult(data) {
+      return data.userId == request.auth.uid &&
+             data.matrixId is string &&
+             data.answers is map &&
+             data.completedAt is string;
+    }
+
+    function isValidEnjoymentPlan(data) {
+      return data.userId == request.auth.uid &&
+             data.xray is map &&
+             data.xrayReflections is map &&
+             data.pillars is map &&
+             data.finalVision is map &&
+             data.createdAt is string;
+    }
+
+    function isValidProtocolResult(data) {
+      return data.userId == request.auth.uid &&
+             data.protocolId is string &&
+             data.answers is map &&
+             data.completedAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
     match /users/{userId} {
-      // Allow all access during initial phase to support mock IDs and unauthenticated testing
-      allow read, write: if true;
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
     match /categories/{categoryId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /quizzes/{quizId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /user_results/{resultId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     match /matrix_results/{id} {
-      allow read, write: if true;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /enjoymentPlans/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /enjoymentPlanDrafts/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAuthenticated() && (
+        (resource == null && request.resource.data.userId == request.auth.uid) ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+    }
+
+    match /protocolResults/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
   }
 }

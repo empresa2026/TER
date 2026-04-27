@@ -49,6 +49,44 @@
         "displayName": { "type": "string" }
       },
       "required": ["email", "role"]
+    },
+    "MatrixResult": {
+      "title": "Matrix Result",
+      "description": "A user's answers to an investigation matrix.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "matrixId": { "type": "string" },
+        "answers": { "type": "object" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "matrixId", "answers", "completedAt"]
+    },
+    "EnjoymentPlanResult": {
+      "title": "Enjoyment Plan Result",
+      "description": "A user's enjoyment plan (Raio-X, pillars, vision).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "xray": { "type": "object" },
+        "xrayReflections": { "type": "object" },
+        "pillars": { "type": "object" },
+        "finalVision": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "xray", "xrayReflections", "pillars", "finalVision", "createdAt"]
+    },
+    "ProtocolResult": {
+      "title": "Protocol Result",
+      "description": "A user's answers to a second-generation protocol.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "protocolId": { "type": "string" },
+        "answers": { "type": "object" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "protocolId", "answers", "completedAt"]
     }
   },
   "firestore": {
@@ -67,6 +105,22 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "User profile data."
+    },
+    "/matrix_results/{id}": {
+      "schema": "MatrixResult",
+      "description": "Results of matrix investigations."
+    },
+    "/enjoymentPlans/{id}": {
+      "schema": "EnjoymentPlanResult",
+      "description": "User enjoyment plans."
+    },
+    "/enjoymentPlanDrafts/{id}": {
+      "schema": "EnjoymentPlanResult",
+      "description": "Drafts for enjoyment plans."
+    },
+    "/protocolResults/{id}": {
+      "schema": "ProtocolResult",
+      "description": "Results of second-generation protocols."
     }
   }
 }

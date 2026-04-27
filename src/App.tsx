@@ -11,9 +11,9 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Quiz, UserResult, UserProfile, Category, Matrix, MatrixResult } from './types';
+import { Quiz, UserResult, UserProfile, Category, Matrix, MatrixResult, EnjoymentPlanResult, Protocol, ProtocolResult } from './types';
 import { motion } from 'framer-motion';
-import { Crown, Loader2, User as UserIcon, ShieldCheck, LayoutGrid } from 'lucide-react';
+import { Crown, Loader2, User as UserIcon, ShieldCheck, LayoutGrid, ShieldAlert } from 'lucide-react';
 import { handleFirestoreError, OperationType } from './lib/firestore';
 
 // Components
@@ -27,19 +27,25 @@ import { MatrixLibraryView } from './components/quiz/MatrixLibraryView';
 import { MatrixPlayer } from './components/quiz/MatrixPlayer';
 import { HistoryView } from './components/quiz/HistoryView';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { EnjoymentPlanFlow } from './components/plan/EnjoymentPlanFlow';
+import { ProtocolLibraryView } from './components/quiz/ProtocolLibraryView';
+import { ProtocolPlayer } from './components/quiz/ProtocolPlayer';
 
 export default function App() {
   const [user, setUser] = useState<{ uid: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [view, setView] = useState<'library' | 'admin' | 'quiz' | 'history' | 'matrices'>('library');
+  const [view, setView] = useState<'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols'>('plan');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [history, setHistory] = useState<UserResult[]>([]);
   const [matrixHistory, setMatrixHistory] = useState<MatrixResult[]>([]);
+  const [protocolHistory, setProtocolHistory] = useState<ProtocolResult[]>([]);
+  const [planHistory, setPlanHistory] = useState<EnjoymentPlanResult[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeQuizResult, setActiveQuizResult] = useState<UserResult | null>(null);
   const [activeMatrix, setActiveMatrix] = useState<Matrix | null>(null);
   const [activeMatrixResult, setActiveMatrixResult] = useState<MatrixResult | null>(null);
+  const [activeProtocol, setActiveProtocol] = useState<Protocol | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -146,6 +152,28 @@ export default function App() {
     return unsubscribe;
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'enjoymentPlans'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPlanHistory(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as EnjoymentPlanResult)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'enjoymentPlans');
+    });
+    return unsubscribe;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'protocolResults'), where('userId', '==', user.uid), orderBy('completedAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setProtocolHistory(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ProtocolResult)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'protocolResults');
+    });
+    return unsubscribe;
+  }, [user]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-luxury-black">
@@ -201,11 +229,12 @@ export default function App() {
           profile={profile} 
           onLogout={handleLogout} 
           onHome={() => {
-            setView('library');
+            setView('plan');
             setActiveQuiz(null);
             setActiveQuizResult(null);
             setActiveMatrix(null);
             setActiveMatrixResult(null);
+            setActiveProtocol(null);
           }} 
         />
 
@@ -265,6 +294,8 @@ export default function App() {
                 <HistoryView 
                   history={history}
                   matrixHistory={matrixHistory}
+                  protocolHistory={protocolHistory}
+                  planHistory={planHistory}
                   quizzes={quizzes}
                   onBack={() => setView('library')}
                   onSelectQuiz={(q, result) => {
@@ -274,6 +305,29 @@ export default function App() {
                   onViewMatrixResult={(m, result) => {
                     setActiveMatrix(m);
                     setActiveMatrixResult(result);
+                  }}
+                />
+              )}
+              {view === 'plan' && user && (
+                <EnjoymentPlanFlow 
+                  userId={user.uid}
+                  onBack={() => setView('library')}
+                  onComplete={() => setView('library')}
+                />
+              )}
+              {view === 'protocols' && !activeProtocol && (
+                <ProtocolLibraryView 
+                  onSelect={(p) => setActiveProtocol(p)}
+                />
+              )}
+              {view === 'protocols' && activeProtocol && user && (
+                <ProtocolPlayer 
+                  userId={user.uid}
+                  protocol={activeProtocol}
+                  onBack={() => setActiveProtocol(null)}
+                  onComplete={() => {
+                    setActiveProtocol(null);
+                    setView('history');
                   }}
                 />
               )}

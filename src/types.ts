@@ -84,3 +84,57 @@ export interface MatrixResult {
   answers: Record<string, string>;
   completedAt: string;
 }
+
+export interface Protocol {
+  id: string;
+  title: string;
+  code: string;
+  description: string;
+  quote: string;
+  useCase: string;
+}
+
+export interface ProtocolResult {
+  id: string;
+  userId: string;
+  protocolId: string;
+  answers: Record<string, any>;
+  completedAt: string;
+}
+
+export interface EnjoymentPlanResult {
+  id: string;
+  userId: string;
+  xray: Record<string, number>;
+  xrayReflections: {
+    r1: string;
+    r2: string;
+    r3: string;
+  };
+  pillars: Record<string, {
+    image: {
+      a: string;
+      b: string;
+      c: string;
+    };
+    objectives: Array<{
+      what: string;
+      when: string;
+      how: string;
+    }>;
+    actions: string[];
+  }>;
+  finalVision: {
+    phrase: {
+      where: string;
+      who: string;
+    };
+    vida: {
+      visao: string;
+      intencao: string;
+      direcao: string;
+      acao: string;
+    };
+  };
+  createdAt: string;
+}
