@@ -1,10 +1,10 @@
 import React from 'react';
-import { BookOpen, History, Plus } from 'lucide-react';
+import { BookOpen, History, Plus, LayoutGrid } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface NavbarProps {
-  view: 'library' | 'admin' | 'quiz' | 'history';
-  setView: (view: 'library' | 'admin' | 'quiz' | 'history') => void;
+  view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices';
+  setView: (view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices') => void;
   isAdmin: boolean;
 }
 
@@ -20,7 +20,18 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
           )}
         >
           <BookOpen className="w-6 h-6" />
-          <span className="text-[10px] uppercase font-bold tracking-widest">Biblioteca</span>
+          <span className="text-[10px] uppercase font-bold tracking-widest">IA</span>
+        </button>
+
+        <button 
+          onClick={() => setView('matrices')}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            view === 'matrices' ? "text-gold" : "text-white/20 hover:text-white/40"
+          )}
+        >
+          <LayoutGrid className="w-6 h-6" />
+          <span className="text-[10px] uppercase font-bold tracking-widest">Checkpoint</span>
         </button>
         
         <button 
@@ -31,7 +42,7 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
           )}
         >
           <History className="w-6 h-6" />
-          <span className="text-[10px] uppercase font-bold tracking-widest">Histórico</span>
+          <span className="text-[10px] uppercase font-bold tracking-widest">Raio-X</span>
         </button>
 
         {isAdmin && (

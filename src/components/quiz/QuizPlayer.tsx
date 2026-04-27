@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Check, Crown } from 'lucide-react';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Quiz } from '../../types';
+import { Quiz, UserResult } from '../../types';
 import { handleFirestoreError, OperationType } from '../../lib/firestore';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/Button';
@@ -13,14 +13,17 @@ interface QuizPlayerProps {
   userId: string;
   onComplete: () => void;
   onBack: () => void;
+  viewResult?: UserResult;
 }
 
-export function QuizPlayer({ quiz, userId, onComplete, onBack }: QuizPlayerProps) {
-  const [currentSectionIdx, setCurrentSectionIdx] = useState(-1); // -1 for Intro, sections.length for Final Prayer
+export function QuizPlayer({ quiz, userId, onComplete, onBack, viewResult }: QuizPlayerProps) {
+  const [currentSectionIdx, setCurrentSectionIdx] = useState(viewResult ? 0 : -1); // -1 for Intro, sections.length for Final Prayer
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, number>>(viewResult?.answers || {});
   const [saving, setSaving] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+
+  const isViewMode = !!viewResult;
 
   const sections = quiz.sections || [];
   const totalQuestions = sections.reduce((acc, s) => acc + s.questions.length, 0);
@@ -28,7 +31,7 @@ export function QuizPlayer({ quiz, userId, onComplete, onBack }: QuizPlayerProps
   const progress = currentSectionIdx === -1 ? 0 : (currentGlobalIndex / totalQuestions) * 100;
 
   const handleAnswer = (optionIdx: number) => {
-    if (selectedOption !== null) return;
+    if (isViewMode || selectedOption !== null) return;
     setSelectedOption(optionIdx);
 
     const questionKey = `${currentSectionIdx}-${currentQuestionIdx}`;
@@ -169,35 +172,80 @@ export function QuizPlayer({ quiz, userId, onComplete, onBack }: QuizPlayerProps
 
               <div className="grid grid-cols-1 gap-4">
                 {sections[currentSectionIdx].questions[currentQuestionIdx].options.map((option, idx) => {
-                  const isSelected = selectedOption === idx;
-                  const isDimmed = selectedOption !== null && !isSelected;
+                  const answerKey = `${currentSectionIdx}-${currentQuestionIdx}`;
+                  const isSelected = selectedOption === idx || answers[answerKey] === idx;
+                  const isDimmed = (selectedOption !== null && selectedOption !== idx) || (isViewMode && answers[answerKey] !== undefined && answers[answerKey] !== idx);
                   return (
                     <motion.button
                       key={idx}
-                      whileTap={selectedOption === null ? { scale: 0.98 } : {}}
+                      whileTap={(!isViewMode && selectedOption === null) ? { scale: 0.98 } : {}}
+                      animate={isSelected ? { scale: 1.02 } : isDimmed ? { scale: 0.96, opacity: 0.2 } : { scale: 1 }}
                       onClick={() => handleAnswer(idx)}
                       className={cn(
-                        "glass p-6 rounded-2xl text-left transition-all group flex items-center justify-between border",
+                        "glass p-6 rounded-2xl text-left transition-all duration-500 group flex items-center justify-between border relative overflow-hidden",
                         isSelected 
-                          ? "border-gold bg-gold/10 shadow-[0_0_20px_rgba(212,175,55,0.2)]" 
+                          ? "border-gold bg-gradient-to-br from-gold/30 via-gold/10 to-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.3)]" 
                           : "border-white/5 hover:border-gold/50 hover:bg-white/10",
-                        isDimmed && "opacity-20 grayscale scale-[0.98] pointer-events-none"
+                        isDimmed && "grayscale pointer-events-none blur-[0.5px]"
                       )}
                     >
+                      {isSelected && (
+                        <motion.div 
+                          initial={{ x: '-100%' }}
+                          animate={{ x: '100%' }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                        />
+                      )}
                       <span className={cn(
-                        "text-lg transition-colors",
-                        isSelected ? "text-gold font-medium" : "text-white/80 group-hover:text-white"
+                        "text-lg transition-colors relative z-10",
+                        isSelected ? "text-gold font-bold" : "text-white/80 group-hover:text-white"
                       )}>{option}</span>
                       <div className={cn(
-                        "w-6 h-6 rounded-full border flex items-center justify-center transition-all",
-                        isSelected ? "border-gold bg-gold text-black" : "border-white/20 group-hover:border-gold/50"
+                        "w-8 h-8 rounded-full border flex items-center justify-center transition-all relative z-10",
+                        isSelected ? "border-gold gold-gradient text-black shadow-[0_0_15px_rgba(212,175,55,0.5)]" : "border-white/20 group-hover:border-gold/50"
                       )}>
-                        {isSelected ? <Check className="w-4 h-4" /> : <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-gold" />}
+                        {isSelected ? <Check className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-gold" />}
                       </div>
                     </motion.button>
                   );
                 })}
               </div>
+
+              {isViewMode && (
+                <div className="flex justify-between gap-4 pt-8">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (currentQuestionIdx > 0) {
+                        setCurrentQuestionIdx(currentQuestionIdx - 1);
+                      } else if (currentSectionIdx > 0) {
+                        setCurrentSectionIdx(currentSectionIdx - 1);
+                        setCurrentQuestionIdx(sections[currentSectionIdx - 1].questions.length - 1);
+                      } else {
+                        setCurrentSectionIdx(-1);
+                      }
+                    }}
+                    className="flex-1 border-white/10"
+                  >
+                    Voltar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const currentSection = sections[currentSectionIdx];
+                      if (currentQuestionIdx < currentSection.questions.length - 1) {
+                        setCurrentQuestionIdx(currentQuestionIdx + 1);
+                      } else {
+                        setCurrentSectionIdx(currentSectionIdx + 1);
+                        setCurrentQuestionIdx(0);
+                      }
+                    }}
+                    className="flex-1"
+                  >
+                    Próximo
+                  </Button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -219,10 +267,10 @@ export function QuizPlayer({ quiz, userId, onComplete, onBack }: QuizPlayerProps
 
             <Button 
               className="w-full py-4 text-lg" 
-              onClick={saveResult}
+              onClick={isViewMode ? onBack : saveResult}
               disabled={saving}
             >
-              {saving ? 'Salvando...' : 'Concluir Protocolo'}
+              {isViewMode ? 'Voltar ao Raio-X' : saving ? 'Salvando...' : 'Concluir Protocolo'}
             </Button>
           </motion.div>
         )}

@@ -50,3 +50,37 @@ export interface UserProfile {
   role: 'admin' | 'user';
   displayName?: string;
 }
+
+export interface MatrixField {
+  letter: string;
+  label: string;
+  description: string;
+  hints?: string[];
+}
+
+export interface MatrixHelp {
+  what: string;   // O que procurar
+  how: string;    // Como sei que achei
+  do: string;     // O que faço quando acho
+  cure: string;   // Como isso leva à cura
+}
+
+export interface Matrix {
+  id: string;
+  number: string;
+  title: string;
+  acronym: string;
+  author: string;
+  concept: string;
+  help: MatrixHelp;
+  fields: MatrixField[];
+  extraQuestions?: string[];
+}
+
+export interface MatrixResult {
+  id: string;
+  userId: string;
+  matrixId: string;
+  answers: Record<string, string>;
+  completedAt: string;
+}

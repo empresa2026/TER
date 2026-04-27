@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, Sparkles, ChevronRight, BookOpen, Edit2, Check, X } from 'lucide-react';
+import { Trash2, Crown, ChevronRight, BookOpen, Edit2, Check, X } from 'lucide-react';
 import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Quiz, Category, UserResult } from '../../types';
@@ -184,7 +184,7 @@ export function LibraryView({
               
               <div className="flex justify-between items-start mb-6">
                 <div className="p-3 rounded-2xl bg-gold/10 text-gold">
-                  <Sparkles className="w-6 h-6" />
+                  <Crown className="w-6 h-6" />
                 </div>
                 {attempts.length > 0 && (
                   <div className="text-xs font-semibold uppercase tracking-widest text-gold bg-gold/10 px-3 py-1 rounded-full">

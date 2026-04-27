@@ -13,7 +13,7 @@ export function Header({ profile, onLogout, onHome }: HeaderProps) {
     <header className="p-6 flex items-center justify-between max-w-7xl mx-auto">
       <div className="flex items-center gap-3 cursor-pointer" onClick={onHome}>
         <Crown className="w-8 h-8 text-gold" />
-        <h1 className="text-2xl font-serif tracking-tight gold-text">The Ego Reset</h1>
+        <h1 className="text-2xl font-serif tracking-tight gold-text">Escola da Unidade</h1>
       </div>
       
       <div className="flex items-center gap-6">
