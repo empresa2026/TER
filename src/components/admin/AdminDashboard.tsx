@@ -192,6 +192,91 @@ export function AdminDashboard({ categories, userId, onBack }: AdminDashboardPro
     }
   };
 
+  const handleSeed = async () => {
+    if (!confirm('Deseja importar os protocolos e categorias base da Escola da Unidade?')) return;
+    setCleaning(true);
+    try {
+      // 1. Create Categories
+      const catResults = await Promise.all([
+        addDoc(collection(db, 'categories'), { name: 'Feridas Primárias', createdAt: new Date().toISOString() }),
+        addDoc(collection(db, 'categories'), { name: 'Prosperidade', createdAt: new Date().toISOString() }),
+        addDoc(collection(db, 'categories'), { name: 'Relacionamentos', createdAt: new Date().toISOString() })
+      ]);
+      const [feridaId, prosperidadeId, relacionalId] = catResults.map(r => r.id);
+
+      // 2. Create Sample Quizzes
+      const samples = [
+        {
+          title: "O Medo da Rejeição",
+          categoryId: feridaId,
+          identifiedStructure: {
+            ferida: "Injustiça/Rejeição",
+            dominio: "Social e Íntimo",
+            mascara: "Rígido/Esquizoide",
+            modo: "Auto-exclusão preventiva"
+          },
+          axisEstablishment: {
+            text: "Onde você se retira antes de ser expulso?",
+            instruction: "Sinta o frio na base da coluna ao ler esta pergunta."
+          },
+          sections: [
+            {
+              title: "1. O ACORDO SILENCIOSO",
+              intro: "Todo medo da rejeição nasce de um contrato que você assinou consigo mesmo para não incomodar.",
+              questions: [
+                {
+                  question: "Qual sua primeira reação ao entrar em um ambiente novo?",
+                  options: ["Observar as saídas", "Tentar agradar alguém rápido", "Ficar invisível", "Analisar quem pode me julgar"]
+                }
+              ]
+            }
+          ],
+          finalPrayer: "Eu renuncio ao papel de intruso na minha própria vida.",
+          createdAt: new Date().toISOString(),
+          createdBy: userId
+        },
+        {
+          title: "A Frequência da Escassez",
+          categoryId: prosperidadeId,
+          identifiedStructure: {
+            ferida: "Oralidade/Privação",
+            dominio: "Recursos e Valor",
+            mascara: "O Vazio",
+            modo: "Acúmulo por medo ou Gasto por ansiedade"
+          },
+          axisEstablishment: {
+            text: "O dinheiro é apenas a sombra da sua permissão de existir.",
+            instruction: "Respire e sinta onde no corpo você aperta quando pensa em boletos."
+          },
+          sections: [
+            {
+              title: "1. A RAIZ DO VAZIO",
+              intro: "Você não tem medo de faltar dinheiro. Você tem medo de que, se faltar, você não será cuidado.",
+              questions: [
+                {
+                  question: "Como você se sente ao receber um valor inesperado?",
+                  options: ["Culpa por ter", "Medo de perder rápido", "Vontade de gastar tudo", "Alívio momentâneo mas alerta"]
+                }
+              ]
+            }
+          ],
+          finalPrayer: "Eu me abro para a abundância que já sou.",
+          createdAt: new Date().toISOString(),
+          createdBy: userId
+        }
+      ];
+
+      for (const sample of samples) {
+        await addDoc(collection(db, 'quizzes'), sample);
+      }
+      alert('Modelos importados com sucesso!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'quizzes');
+    } finally {
+      setCleaning(false);
+    }
+  };
+
   const filteredQuizzes = quizzes.filter(q => 
     q.title.toLowerCase().includes(searchQuiz.toLowerCase())
   );
@@ -500,6 +585,30 @@ export function AdminDashboard({ categories, userId, onBack }: AdminDashboardPro
               <StatCard label="Total Usuários" value={users.length} icon={<Users />} />
               <StatCard label="Categorias" value={categories.length} icon={<LayoutGrid />} />
             </div>
+
+            <Card className="space-y-6">
+              <h3 className="text-xl font-serif">Ações de Sistema</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button 
+                  variant="outline" 
+                  onClick={handleSeed} 
+                  disabled={cleaning}
+                  className="border-gold/20 text-gold hover:bg-gold hover:text-black"
+                >
+                  <Crown className="w-4 h-4" />
+                  Restaurar Protocolos de Elite
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleCleanup} 
+                  disabled={cleaning}
+                  className="border-gold/20 text-gold hover:bg-gold hover:text-black"
+                >
+                  <Wand2 className="w-4 h-4" />
+                  Limpeza de Títulos
+                </Button>
+              </div>
+            </Card>
 
             <Card className="space-y-6">
               <h3 className="text-xl font-serif">Preferências da Plataforma</h3>
