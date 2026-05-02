@@ -4,12 +4,11 @@ import {
   ArrowLeft, 
   ChevronRight, 
   ChevronLeft, 
-  HelpCircle, 
+  Lightbulb, 
   Check, 
   Save, 
   Crown,
   Info,
-  Lightbulb,
   Zap,
   ShieldCheck,
   Plus
@@ -25,16 +24,30 @@ import { cn } from '../../lib/utils';
 interface MatrixPlayerProps {
   matrix: Matrix;
   userId: string;
+  journeyId?: string;
   onComplete: () => void;
   onBack: () => void;
   viewResult?: MatrixResult;
 }
 
-export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }: MatrixPlayerProps) {
+export function MatrixPlayer({ matrix, userId, journeyId, onComplete, onBack, viewResult }: MatrixPlayerProps) {
   const [currentStep, setCurrentStep] = useState(0); // 0 to fields.length
-  const [answers, setAnswers] = useState<Record<string, string>>(viewResult?.answers || {});
+  const [answers, setAnswers] = useState<Record<string, string>>(() => {
+    if (viewResult) return viewResult.answers;
+    // Load from localStorage draft if exists
+    const draftKey = `matrix_draft_${matrix.id}_${userId}`;
+    const saved = localStorage.getItem(draftKey);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [saving, setSaving] = useState(false);
-  const [showHelp, setShowHelp] = useState(!viewResult);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Auto-save to localStorage
+  React.useEffect(() => {
+    if (viewResult) return;
+    const draftKey = `matrix_draft_${matrix.id}_${userId}`;
+    localStorage.setItem(draftKey, JSON.stringify(answers));
+  }, [answers, matrix.id, userId, viewResult]);
 
   const isViewMode = !!viewResult;
 
@@ -61,9 +74,13 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
       await addDoc(collection(db, 'matrix_results'), {
         userId,
         matrixId: matrix.id,
+        journeyId: journeyId || null,
         answers,
         completedAt: new Date().toISOString()
       });
+      // Clear draft after successful save
+      const draftKey = `matrix_draft_${matrix.id}_${userId}`;
+      localStorage.removeItem(draftKey);
       onComplete();
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'matrix_results');
@@ -138,7 +155,7 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
 
           {!showHelp ? (
             <button onClick={() => setShowHelp(true)} className="p-2 rounded-xl bg-gold/10 text-gold hover:bg-gold/20 transition-all">
-              <HelpCircle className="w-6 h-6" />
+              <Lightbulb className="w-6 h-6" />
             </button>
           ) : (
             <div className="w-10" />
@@ -173,6 +190,12 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
                   <p className="text-2xl font-serif leading-tight mb-6">
                     {matrix.fields[currentStep].description}
                   </p>
+
+                  {matrix.fields[currentStep].details && (
+                    <div className="mb-8 p-6 rounded-2xl bg-gold/5 border border-gold/10 text-gold/80 text-sm whitespace-pre-line leading-relaxed italic">
+                      {matrix.fields[currentStep].details}
+                    </div>
+                  )}
 
                   {matrix.fields[currentStep].hints && !isViewMode && (
                     <div className="flex flex-wrap gap-3 mb-8">
@@ -220,7 +243,7 @@ export function MatrixPlayer({ matrix, userId, onComplete, onBack, viewResult }:
                   </Button>
                 ) : (
                   <Button onClick={handleNext} className="py-4 px-12 text-lg">
-                    Próxima Letra
+                    Próximo
                     <ChevronRight className="ml-2 w-5 h-5" />
                   </Button>
                 )}

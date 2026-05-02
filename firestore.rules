@@ -27,6 +27,11 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /journeys/{id} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
     match /users/{userId} {
       // Always allow reading profiles in this build
       allow read: if true;
@@ -46,17 +51,17 @@ service cloud.firestore {
 
     match /user_results/{resultId} {
       allow read: if true;
-      allow create, write: if true;
+      allow create, update, delete: if true;
     }
 
     match /matrix_results/{id} {
       allow read: if true;
-      allow create, write: if true;
+      allow create, update, delete: if true;
     }
 
     match /enjoymentPlans/{id} {
       allow read: if true;
-      allow create, write: if true;
+      allow create, update, delete: if true;
     }
 
     match /enjoymentPlanDrafts/{id} {
@@ -66,7 +71,7 @@ service cloud.firestore {
 
     match /protocolResults/{id} {
       allow read: if true;
-      allow create, write: if true;
+      allow create, update, delete: if true;
     }
     
     // Support for connection testing

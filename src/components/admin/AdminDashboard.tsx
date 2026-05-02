@@ -134,7 +134,9 @@ export function AdminDashboard({ categories, userId, onBack }: AdminDashboardPro
   };
 
   const handleDeleteQuiz = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este protocolo?')) return;
+    // Basic confirmation state for simplicity, or just use the same pattern if needed.
+    // Given the complexity of AdminDashboard, I will keep it simple but functional.
+    if (!window.confirm('Tem certeza que deseja excluir este protocolo?')) return;
     try {
       await deleteDoc(doc(db, 'quizzes', id));
     } catch (err) {

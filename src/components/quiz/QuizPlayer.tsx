@@ -11,17 +11,41 @@ import { Button } from '../ui/Button';
 interface QuizPlayerProps {
   quiz: Quiz;
   userId: string;
+  journeyId?: string;
   onComplete: () => void;
   onBack: () => void;
   viewResult?: UserResult;
 }
 
-export function QuizPlayer({ quiz, userId, onComplete, onBack, viewResult }: QuizPlayerProps) {
-  const [currentSectionIdx, setCurrentSectionIdx] = useState(viewResult ? 0 : -1); // -1 for Intro, sections.length for Final Prayer
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>(viewResult?.answers || {});
+export function QuizPlayer({ quiz, userId, journeyId, onComplete, onBack, viewResult }: QuizPlayerProps) {
+  const [currentSectionIdx, setCurrentSectionIdx] = useState(() => {
+    if (viewResult) return 0;
+    const draftKey = `quiz_draft_step_${quiz.id}_${userId}`;
+    const saved = localStorage.getItem(draftKey);
+    return saved ? parseInt(saved) : -1;
+  });
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(() => {
+    if (viewResult) return 0;
+    const draftKey = `quiz_draft_q_step_${quiz.id}_${userId}`;
+    const saved = localStorage.getItem(draftKey);
+    return saved ? parseInt(saved) : 0;
+  });
+  const [answers, setAnswers] = useState<Record<string, number>>(() => {
+    if (viewResult) return viewResult.answers;
+    const draftKey = `quiz_draft_answers_${quiz.id}_${userId}`;
+    const saved = localStorage.getItem(draftKey);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [saving, setSaving] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+
+  // Auto-save to localStorage
+  React.useEffect(() => {
+    if (viewResult) return;
+    localStorage.setItem(`quiz_draft_step_${quiz.id}_${userId}`, currentSectionIdx.toString());
+    localStorage.setItem(`quiz_draft_q_step_${quiz.id}_${userId}`, currentQuestionIdx.toString());
+    localStorage.setItem(`quiz_draft_answers_${quiz.id}_${userId}`, JSON.stringify(answers));
+  }, [currentSectionIdx, currentQuestionIdx, answers, quiz.id, userId, viewResult]);
 
   const isViewMode = !!viewResult;
 
@@ -55,9 +79,14 @@ export function QuizPlayer({ quiz, userId, onComplete, onBack, viewResult }: Qui
       await addDoc(collection(db, 'user_results'), {
         userId: userId,
         quizId: quiz.id,
+        journeyId: journeyId || null,
         answers,
         completedAt: new Date().toISOString()
       });
+      // Clear draft
+      localStorage.removeItem(`quiz_draft_step_${quiz.id}_${userId}`);
+      localStorage.removeItem(`quiz_draft_q_step_${quiz.id}_${userId}`);
+      localStorage.removeItem(`quiz_draft_answers_${quiz.id}_${userId}`);
       onComplete();
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'user_results');

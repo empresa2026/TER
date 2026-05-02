@@ -36,10 +36,20 @@ export interface Quiz {
   createdBy: string;
 }
 
+export interface Journey {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  status: 'active' | 'archived';
+}
+
 export interface UserResult {
   id: string;
   userId: string;
   quizId: string;
+  journeyId?: string;
   answers: Record<string, number>; // question index -> option index
   completedAt: string;
 }
@@ -56,6 +66,7 @@ export interface MatrixField {
   label: string;
   description: string;
   hints?: string[];
+  details?: string;
 }
 
 export interface MatrixHelp {
@@ -72,6 +83,7 @@ export interface Matrix {
   acronym: string;
   author: string;
   concept: string;
+  category?: string;
   help: MatrixHelp;
   fields: MatrixField[];
   extraQuestions?: string[];
@@ -81,6 +93,7 @@ export interface MatrixResult {
   id: string;
   userId: string;
   matrixId: string;
+  journeyId?: string;
   answers: Record<string, string>;
   completedAt: string;
 }
@@ -98,6 +111,7 @@ export interface ProtocolResult {
   id: string;
   userId: string;
   protocolId: string;
+  journeyId?: string;
   answers: Record<string, any>;
   completedAt: string;
 }
@@ -105,6 +119,7 @@ export interface ProtocolResult {
 export interface EnjoymentPlanResult {
   id: string;
   userId: string;
+  journeyId?: string;
   xray: Record<string, number>;
   xrayReflections: {
     r1: string;

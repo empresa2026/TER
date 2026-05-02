@@ -1,10 +1,10 @@
 import React from 'react';
-import { BookOpen, History, Plus, LayoutGrid, Crown, ShieldAlert } from 'lucide-react';
+import { BookOpen, History, Plus, LayoutGrid, Crown, ShieldAlert, Compass } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface NavbarProps {
-  view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols';
-  setView: (view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols') => void;
+  view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols' | 'journeys';
+  setView: (view: 'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols' | 'journeys') => void;
   isAdmin: boolean;
 }
 
@@ -12,6 +12,17 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/5 p-4 z-50">
       <div className="max-w-md mx-auto flex justify-around items-center">
+        <button 
+          onClick={() => setView('journeys')}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            view === 'journeys' ? "text-gold" : "text-white/20 hover:text-white/40"
+          )}
+        >
+          <Compass className="w-6 h-6" />
+          <span className="text-[10px] uppercase font-bold tracking-widest">Jornada</span>
+        </button>
+
         <button 
           onClick={() => setView('plan')}
           className={cn(
@@ -41,8 +52,8 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
             view === 'matrices' ? "text-gold" : "text-white/20 hover:text-white/40"
           )}
         >
-          <LayoutGrid className="w-6 h-6" />
-          <span className="text-[10px] uppercase font-bold tracking-widest">Checkpoint</span>
+          <History className="w-6 h-6" />
+          <span className="text-[10px] uppercase font-bold tracking-widest">Raio-X</span>
         </button>
 
         <button 
@@ -63,8 +74,8 @@ export function Navbar({ view, setView, isAdmin }: NavbarProps) {
             view === 'history' ? "text-gold" : "text-white/20 hover:text-white/40"
           )}
         >
-          <History className="w-6 h-6" />
-          <span className="text-[10px] uppercase font-bold tracking-widest">Raio-X</span>
+          <LayoutGrid className="w-6 h-6" />
+          <span className="text-[10px] uppercase font-bold tracking-widest">Checkpoint</span>
         </button>
 
         {isAdmin && (

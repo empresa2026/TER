@@ -34,6 +34,7 @@
       "properties": {
         "userId": { "type": "string" },
         "quizId": { "type": "string" },
+        "journeyId": { "type": "string" },
         "answers": { "type": "object" },
         "completedAt": { "type": "string", "format": "date-time" }
       },
@@ -57,6 +58,7 @@
       "properties": {
         "userId": { "type": "string" },
         "matrixId": { "type": "string" },
+        "journeyId": { "type": "string" },
         "answers": { "type": "object" },
         "completedAt": { "type": "string", "format": "date-time" }
       },
@@ -68,6 +70,7 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
+        "journeyId": { "type": "string" },
         "xray": { "type": "object" },
         "xrayReflections": { "type": "object" },
         "pillars": { "type": "object" },
@@ -83,13 +86,31 @@
       "properties": {
         "userId": { "type": "string" },
         "protocolId": { "type": "string" },
+        "journeyId": { "type": "string" },
         "answers": { "type": "object" },
         "completedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "protocolId", "answers", "completedAt"]
+    },
+    "Journey": {
+      "title": "Journey",
+      "description": "An organized space for protocols (e.g., specific event).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "archived"] }
+      },
+      "required": ["userId", "name", "createdAt", "status"]
     }
   },
   "firestore": {
+    "/journeys/{id}": {
+      "schema": "Journey",
+      "description": "User journeys/spaces for organization."
+    },
     "/categories/{categoryId}": {
       "schema": "Category",
       "description": "Collection of protocol categories."

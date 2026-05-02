@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Play, FileText, Loader2, ExternalLink } from 'lucide-react';
-import { Quiz, UserResult, MatrixResult, Matrix, EnjoymentPlanResult, ProtocolResult } from '../../types';
+import { ArrowLeft, Play, FileText, Loader2, ExternalLink, LayoutGrid, Trash2 } from 'lucide-react';
+import { Journey, Quiz, UserResult, MatrixResult, Matrix, EnjoymentPlanResult, ProtocolResult } from '../../types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { createGoogleDoc } from '../../services/googleDocsService';
 import { MATRICES } from '../../data/matrices';
 import { ENJOYMENT_PILLARS } from '../../data/enjoymentPlan';
 import { PROTOCOLS } from '../../data/protocols';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { X, Trophy } from 'lucide-react';
 
 interface HistoryViewProps {
   history: UserResult[];
@@ -18,7 +20,63 @@ interface HistoryViewProps {
   onBack: () => void;
   onSelectQuiz: (quiz: Quiz, result?: UserResult) => void;
   onViewMatrixResult: (matrix: Matrix, result: MatrixResult) => void;
+  onDeleteUserResult?: (resultId: string) => void;
+  onDeleteMatrixResult?: (resultId: string) => void;
+  onDeleteProtocolResult?: (resultId: string) => void;
+  onDeletePlanResult?: (resultId: string) => void;
+  activeJourneyId?: string | null;
+  journeys?: Journey[];
 }
+
+const DeleteButton = ({ 
+  id, 
+  onDelete, 
+  label, 
+  confirmDeleteId, 
+  setConfirmDeleteId 
+}: { 
+  id: string, 
+  onDelete: (id: string) => void, 
+  label: string,
+  confirmDeleteId: string | null,
+  setConfirmDeleteId: (id: string | null) => void
+}) => {
+  const isConfirming = confirmDeleteId === id;
+
+  if (isConfirming) {
+    return (
+      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
+        <Button 
+          variant="ghost" 
+          onClick={() => setConfirmDeleteId(null)}
+          className="text-[10px] uppercase font-bold px-3 py-1"
+        >
+          Cancelar
+        </Button>
+        <Button 
+          className="bg-red-500 text-white hover:bg-red-600 text-[10px] uppercase font-bold px-3 py-1 border-none shadow-lg shadow-red-500/20"
+          onClick={() => {
+            onDelete(id);
+            setConfirmDeleteId(null);
+          }}
+        >
+          Confirmar
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button 
+      variant="outline" 
+      onClick={() => setConfirmDeleteId(id)}
+      title={`Excluir ${label}`}
+      className="p-3 border-white/5 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all"
+    >
+      <Trash2 className="w-4 h-4" />
+    </Button>
+  );
+};
 
 export function HistoryView({ 
   history, 
@@ -28,9 +86,35 @@ export function HistoryView({
   quizzes, 
   onBack, 
   onSelectQuiz,
-  onViewMatrixResult 
+  onViewMatrixResult,
+  onDeleteUserResult,
+  onDeleteMatrixResult,
+  onDeleteProtocolResult,
+  onDeletePlanResult,
+  activeJourneyId,
+  journeys = []
 }: HistoryViewProps) {
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [viewingPlan, setViewingPlan] = useState<EnjoymentPlanResult | null>(null);
+
+  const activeJourney = journeys.find(j => j.id === activeJourneyId);
+
+  const filteredHistory = activeJourneyId 
+    ? history.filter(h => h.journeyId === activeJourneyId)
+    : history;
+  
+  const filteredMatrixHistory = activeJourneyId 
+    ? matrixHistory.filter(h => h.journeyId === activeJourneyId)
+    : matrixHistory;
+
+  const filteredProtocolHistory = activeJourneyId 
+    ? protocolHistory.filter(h => h.journeyId === activeJourneyId)
+    : protocolHistory;
+
+  const filteredPlanHistory = activeJourneyId 
+    ? planHistory.filter(h => h.journeyId === activeJourneyId)
+    : planHistory;
 
   const downloadTxt = (title: string, content: string) => {
     const element = document.createElement('a');
@@ -41,6 +125,8 @@ export function HistoryView({
     element.click();
     document.body.removeChild(element);
   };
+
+
 
   const handleSaveToDocs = async (result: UserResult, quiz: Quiz) => {
     setSavingId(result.id);
@@ -86,7 +172,7 @@ export function HistoryView({
     
     setSavingId(result.id);
     try {
-      let content = `Matriz de Investigação: ${matrix.title}\n`;
+      let content = `Checkpoint de Investigação: ${matrix.title}\n`;
       content += `Autor: ${matrix.author}\n`;
       content += `Data: ${new Date(result.completedAt).toLocaleString('pt-BR')}\n\n`;
       
@@ -96,11 +182,11 @@ export function HistoryView({
       });
 
       try {
-        const docUrl = await createGoogleDoc(`Matriz - ${matrix.title}`, content);
+        const docUrl = await createGoogleDoc(`Checkpoint - ${matrix.title}`, content);
         window.open(docUrl, '_blank');
       } catch (docErr) {
         console.warn('Google Docs failed, falling back to TXT download', docErr);
-        downloadTxt(`Matriz - ${matrix.title}`, content);
+        downloadTxt(`Checkpoint - ${matrix.title}`, content);
       }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Erro ao processar exportação');
@@ -194,18 +280,36 @@ export function HistoryView({
       exit={{ opacity: 0 }}
       className="py-8"
     >
-      <div className="flex items-center gap-4 mb-12">
-        <button onClick={onBack} className="text-white/40 hover:text-white transition-colors">
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-        <h2 className="text-4xl font-serif">Seu Raio-X</h2>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="text-white/40 hover:text-white transition-colors">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div>
+            <h2 className="text-4xl font-serif">Biblioteca Checkpoint</h2>
+            {activeJourney && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-2 h-2 rounded-full bg-gold animate-pulse" />
+                <span className="text-xs font-bold text-gold uppercase tracking-widest">
+                  Visualizando Espaço: {activeJourney.name}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {activeJourneyId && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
+            <span className="text-[10px] text-white/40 uppercase font-bold tracking-tighter">Histórico do Evento</span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-12 pb-32">
         {/* Enjoyment Plans */}
         <section className="space-y-4">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/60 ml-2">Plano do Desfrute</h3>
-          {planHistory.map((result) => (
+          {filteredPlanHistory.map((result) => (
             <Card key={result.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-gold/[0.03] border-gold/10">
               <div className="flex-1">
                 <h3 className="text-xl font-serif mb-1">Mapa da Mente Curada</h3>
@@ -215,6 +319,15 @@ export function HistoryView({
               </div>
               
               <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setViewingPlan(result)}
+                  className="flex items-center gap-2 border-white/5 hover:bg-white/5"
+                >
+                  <Play className="w-4 h-4" />
+                  Visualizar
+                </Button>
+
                 <Button 
                   variant="outline" 
                   onClick={() => handleSavePlanToDocs(result)}
@@ -228,12 +341,22 @@ export function HistoryView({
                   )}
                   Exportar
                 </Button>
+
+                {onDeletePlanResult && (
+                  <DeleteButton 
+                    id={result.id} 
+                    onDelete={onDeletePlanResult} 
+                    label="plano" 
+                    confirmDeleteId={confirmDeleteId}
+                    setConfirmDeleteId={setConfirmDeleteId}
+                  />
+                )}
               </div>
             </Card>
           ))}
-          {planHistory.length === 0 && (
+          {filteredPlanHistory.length === 0 && (
             <div className="text-center py-10 glass rounded-3xl border-dashed border-white/5 text-white/20">
-              Nenhum plano do desfrute iniciado.
+              Nenhum plano do desfrute neste espaço.
             </div>
           )}
         </section>
@@ -241,7 +364,7 @@ export function HistoryView({
         {/* IA Results */}
         <section className="space-y-4">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/60 ml-2">Protocolos Realizados</h3>
-          {history.map((result) => {
+          {filteredHistory.map((result) => {
             const quiz = quizzes.find(q => q.id === result.quizId);
             if (!quiz) return null;
 
@@ -277,21 +400,31 @@ export function HistoryView({
                     )}
                     Exportar
                   </Button>
+
+                  {onDeleteUserResult && (
+                    <DeleteButton 
+                      id={result.id} 
+                      onDelete={onDeleteUserResult} 
+                      label="protocolo" 
+                      confirmDeleteId={confirmDeleteId}
+                      setConfirmDeleteId={setConfirmDeleteId}
+                    />
+                  )}
                 </div>
               </Card>
             );
           })}
-          {history.length === 0 && (
+          {filteredHistory.length === 0 && (
             <div className="text-center py-10 glass rounded-3xl border-dashed border-white/5 text-white/20">
-              Nenhum protocolo realizado ainda.
+              Nenhum protocolo neste espaço.
             </div>
           )}
         </section>
 
         {/* Matrix Results */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/60 ml-2">Investigações Checkpoint</h3>
-          {matrixHistory.map((result) => {
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/60 ml-2">Histórico de Checkpoints</h3>
+          {filteredMatrixHistory.map((result) => {
             const matrix = MATRICES.find(m => m.id === result.matrixId);
             if (!matrix) return null;
 
@@ -327,13 +460,23 @@ export function HistoryView({
                     )}
                     Exportar
                   </Button>
+
+                  {onDeleteMatrixResult && (
+                    <DeleteButton 
+                      id={result.id} 
+                      onDelete={onDeleteMatrixResult} 
+                      label="checkpoint" 
+                      confirmDeleteId={confirmDeleteId}
+                      setConfirmDeleteId={setConfirmDeleteId}
+                    />
+                  )}
                 </div>
               </Card>
             );
           })}
-          {matrixHistory.length === 0 && (
+          {filteredMatrixHistory.length === 0 && (
             <div className="text-center py-10 glass rounded-3xl border-dashed border-white/5 text-white/20">
-              Nenhuma matriz preenchida ainda.
+              Nenhum checkpoint neste espaço.
             </div>
           )}
         </section>
@@ -341,7 +484,7 @@ export function HistoryView({
         {/* Protocol Results */}
         <section className="space-y-4">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/60 ml-2">Processamentos em Protocolo</h3>
-          {protocolHistory.map((result) => {
+          {filteredProtocolHistory.map((result) => {
             const protocol = PROTOCOLS.find(p => p.id === result.protocolId);
             if (!protocol) return null;
 
@@ -369,17 +512,124 @@ export function HistoryView({
                     )}
                     Exportar
                   </Button>
+
+                  {onDeleteProtocolResult && (
+                    <DeleteButton 
+                      id={result.id} 
+                      onDelete={onDeleteProtocolResult} 
+                      label="processamento" 
+                      confirmDeleteId={confirmDeleteId}
+                      setConfirmDeleteId={setConfirmDeleteId}
+                    />
+                  )}
                 </div>
               </Card>
             );
           })}
-          {protocolHistory.length === 0 && (
+          {filteredProtocolHistory.length === 0 && (
             <div className="text-center py-10 glass rounded-3xl border-dashed border-white/5 text-white/20">
-              Nenhum processamento em protocolo realizado.
+              Nenhum processamento neste espaço.
             </div>
           )}
         </section>
       </div>
+
+      {/* Plan Summary Modal */}
+      {viewingPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-luxury-black border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-luxury-black/90 backdrop-blur-md p-6 border-b border-white/10 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <Trophy className="w-6 h-6 text-gold" />
+                <h3 className="text-2xl font-serif">Plano do Desfrute</h3>
+              </div>
+              <button 
+                onClick={() => setViewingPlan(null)}
+                className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-12">
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* Radar Chart */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-gold/60 text-center">Raio-X de Pilares</h4>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={ENJOYMENT_PILLARS.map(p => ({
+                        subject: p.title.split(' ')[0],
+                        A: viewingPlan.xray[p.id] || 0,
+                        fullMark: 10,
+                      }))}>
+                        <PolarGrid stroke="#ffffff10" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#ffffff40', fontSize: 10 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 10]} tick={false} axisLine={false} />
+                        <Radar
+                          name="Raio-X"
+                          dataKey="A"
+                          stroke="#D4AF37"
+                          fill="#D4AF37"
+                          fillOpacity={0.3}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* VIDA Section */}
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-gold/60">Compromisso V.I.D.A.</h4>
+                  {[
+                    { label: 'VISÃO', val: viewingPlan.finalVision.vida.visao },
+                    { label: 'INTENÇÃO', val: viewingPlan.finalVision.vida.intencao },
+                    { label: 'DIREÇÃO', val: viewingPlan.finalVision.vida.direcao },
+                    { label: 'AÇÃO', val: viewingPlan.finalVision.vida.acao }
+                  ].map((item, i) => (
+                    <div key={i} className="space-y-1 p-4 bg-white/5 rounded-2xl">
+                      <span className="text-[10px] font-bold text-gold/40 uppercase tracking-widest">{item.label}</span>
+                      <p className="text-sm italic">"{item.val}"</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pillars Details */}
+              <div className="space-y-6">
+                <h4 className="text-xl font-serif text-white/80">Detalhes dos Pilares</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {ENJOYMENT_PILLARS.filter(p => viewingPlan.pillars[p.id]).map(p => {
+                    const data = viewingPlan.pillars[p.id];
+                    return (
+                      <Card key={p.id} className="p-6 bg-white/[0.02]">
+                        <h5 className="text-gold font-serif mb-4">{p.title}</h5>
+                        <div className="space-y-4">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-white/20 uppercase">Ações:</span>
+                            <ul className="text-xs space-y-1">
+                              {data.actions.map((act, i) => (
+                                <li key={i} className="flex gap-2">
+                                  <span className="text-gold">•</span>
+                                  {act}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

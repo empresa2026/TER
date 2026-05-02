@@ -23,15 +23,27 @@ import { cn } from '../../lib/utils';
 
 interface ProtocolPlayerProps {
   userId: string;
+  journeyId?: string;
   protocol: Protocol;
   onComplete: () => void;
   onBack: () => void;
 }
 
-export function ProtocolPlayer({ userId, protocol, onComplete, onBack }: ProtocolPlayerProps) {
+export function ProtocolPlayer({ userId, journeyId, protocol, onComplete, onBack }: ProtocolPlayerProps) {
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, any>>(() => {
+    // Load from localStorage draft if exists
+    const draftKey = `protocol_draft_${protocol.id}_${userId}`;
+    const saved = localStorage.getItem(draftKey);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [saving, setSaving] = useState(false);
+
+  // Auto-save to localStorage
+  React.useEffect(() => {
+    const draftKey = `protocol_draft_${protocol.id}_${userId}`;
+    localStorage.setItem(draftKey, JSON.stringify(answers));
+  }, [answers, protocol.id, userId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -39,10 +51,14 @@ export function ProtocolPlayer({ userId, protocol, onComplete, onBack }: Protoco
       const result: Omit<ProtocolResult, 'id'> = {
         userId,
         protocolId: protocol.id,
+        journeyId: journeyId || null,
         answers,
         completedAt: new Date().toISOString()
       };
       await addDoc(collection(db, 'protocolResults'), result);
+      // Clear draft after successful save
+      const draftKey = `protocol_draft_${protocol.id}_${userId}`;
+      localStorage.removeItem(draftKey);
       setStep(999); // Transition to success step
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'protocolResults');

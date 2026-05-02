@@ -8,13 +8,14 @@ import {
   doc, 
   getDoc, 
   setDoc,
+  deleteDoc,
   getDocFromServer
 } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, db } from './firebase';
-import { Quiz, UserResult, UserProfile, Category, Matrix, MatrixResult, EnjoymentPlanResult, Protocol, ProtocolResult } from './types';
+import { Journey, Quiz, UserResult, UserProfile, Category, Matrix, MatrixResult, EnjoymentPlanResult, Protocol, ProtocolResult } from './types';
 import { motion } from 'framer-motion';
-import { Crown, Loader2, User as UserIcon, ShieldCheck, LayoutGrid, ShieldAlert } from 'lucide-react';
+import { Crown, Loader2, User as UserIcon, ShieldCheck, LayoutGrid, ShieldAlert, Compass } from 'lucide-react';
 import { handleFirestoreError, OperationType } from './lib/firestore';
 
 // Components
@@ -31,13 +32,16 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { EnjoymentPlanFlow } from './components/plan/EnjoymentPlanFlow';
 import { ProtocolLibraryView } from './components/quiz/ProtocolLibraryView';
 import { ProtocolPlayer } from './components/quiz/ProtocolPlayer';
+import { JourneyManager } from './components/journey/JourneyManager';
 
 export default function App() {
   const [user, setUser] = useState<{ uid: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [view, setView] = useState<'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols'>('plan');
+  const [view, setView] = useState<'library' | 'admin' | 'quiz' | 'history' | 'matrices' | 'plan' | 'protocols' | 'journeys'>('journeys');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [activeJourneyId, setActiveJourneyId] = useState<string | null>(localStorage.getItem('active_journey_id'));
   const [history, setHistory] = useState<UserResult[]>([]);
   const [matrixHistory, setMatrixHistory] = useState<MatrixResult[]>([]);
   const [protocolHistory, setProtocolHistory] = useState<ProtocolResult[]>([]);
@@ -48,6 +52,15 @@ export default function App() {
   const [activeMatrixResult, setActiveMatrixResult] = useState<MatrixResult | null>(null);
   const [activeProtocol, setActiveProtocol] = useState<Protocol | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Update localStorage when activeJourneyId changes
+  useEffect(() => {
+    if (activeJourneyId) {
+      localStorage.setItem('active_journey_id', activeJourneyId);
+    } else {
+      localStorage.removeItem('active_journey_id');
+    }
+  }, [activeJourneyId]);
 
   useEffect(() => {
     const testConnection = async () => {
@@ -165,6 +178,17 @@ export default function App() {
     localStorage.removeItem('mock_user_role');
   };
 
+  const deleteResult = async (collectionName: string, id: string) => {
+    console.log(`Attempting to delete ${id} from ${collectionName}`);
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+      console.log(`Successfully deleted ${id}`);
+    } catch (error) {
+      console.error(`Failed to delete ${id}:`, error);
+      handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${id}`);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'categories'), orderBy('createdAt', 'desc'));
@@ -216,6 +240,17 @@ export default function App() {
       setPlanHistory(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as EnjoymentPlanResult)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'enjoymentPlans');
+    });
+    return unsubscribe;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'journeys'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setJourneys(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Journey)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'journeys');
     });
     return unsubscribe;
   }, [user]);
@@ -317,6 +352,7 @@ export default function App() {
             <QuizPlayer 
               quiz={activeQuiz} 
               userId={user.uid}
+              journeyId={activeJourneyId || undefined}
               viewResult={activeQuizResult || undefined}
               onComplete={() => {
                 setActiveQuiz(null);
@@ -332,6 +368,7 @@ export default function App() {
             <MatrixPlayer 
               matrix={activeMatrix}
               userId={user.uid}
+              journeyId={activeJourneyId || undefined}
               viewResult={activeMatrixResult || undefined}
               onComplete={() => {
                 setActiveMatrix(null);
@@ -371,6 +408,8 @@ export default function App() {
                   protocolHistory={protocolHistory}
                   planHistory={planHistory}
                   quizzes={quizzes}
+                  activeJourneyId={activeJourneyId}
+                  journeys={journeys}
                   onBack={() => setView('library')}
                   onSelectQuiz={(q, result) => {
                     setActiveQuiz(q);
@@ -380,13 +419,31 @@ export default function App() {
                     setActiveMatrix(m);
                     setActiveMatrixResult(result);
                   }}
+                  onDeleteUserResult={(id) => deleteResult('user_results', id)}
+                  onDeleteMatrixResult={(id) => deleteResult('matrix_results', id)}
+                  onDeleteProtocolResult={(id) => deleteResult('protocolResults', id)}
+                  onDeletePlanResult={(id) => deleteResult('enjoymentPlans', id)}
                 />
               )}
               {view === 'plan' && user && (
                 <EnjoymentPlanFlow 
                   userId={user.uid}
+                  journeyId={activeJourneyId || undefined}
                   onBack={() => setView('library')}
                   onComplete={() => setView('library')}
+                  onViewXRay={() => setView('matrices')}
+                />
+              )}
+              {view === 'journeys' && user && (
+                <JourneyManager 
+                  userId={user.uid}
+                  journeys={journeys}
+                  matrixHistory={matrixHistory}
+                  activeJourneyId={activeJourneyId}
+                  onSelect={(id) => {
+                    setActiveJourneyId(id);
+                    if (id) setView('library');
+                  }}
                 />
               )}
               {view === 'protocols' && !activeProtocol && (
@@ -397,6 +454,7 @@ export default function App() {
               {view === 'protocols' && activeProtocol && user && (
                 <ProtocolPlayer 
                   userId={user.uid}
+                  journeyId={activeJourneyId || undefined}
                   protocol={activeProtocol}
                   onBack={() => setActiveProtocol(null)}
                   onComplete={() => {
